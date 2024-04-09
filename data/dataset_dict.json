@@ -1,0 +1,52 @@
+{
+    "dsads": {
+        "num_classes": 19,
+        "num_channels": 45,
+        "num_volunteers": 8
+    },
+    "opportunity": {
+        "num_classes": 18,
+        "num_channels": 113,
+        "num_volunteers": 4
+    },
+    "pamap2": {
+        "num_classes": 19,
+        "num_channels": 36,
+        "num_volunteers": 9
+    },
+    "uci_har": { 
+        "num_classes": 6,
+        "num_channels": 9,
+        "num_volunteers": 30      
+    },
+    "usc_had": {
+        "num_classes": 12,
+        "num_channels": 6,
+        "num_volunteers": 14
+    },
+    "unimib_shar": {
+        "num_classes": 8,
+        "num_channels": 3,
+        "num_volunteers": 30
+    },
+    "mhealth": {
+        "num_classes": 13,
+        "num_channels": 23,
+        "num_volunteers": 10
+    },
+    "motionsense": {
+        "num_classes": 6,
+        "num_channels": 12,
+        "num_volunteers": 24
+    },
+    "wisdm": {
+        "num_classes": 19,
+        "num_channels": 3,
+        "num_volunteers": 51
+    },
+    "sho": {
+        "num_classes": 7,
+        "num_channels": 60,
+        "num_volunteers": 10
+    }
+}
