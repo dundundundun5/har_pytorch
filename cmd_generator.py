@@ -1,10 +1,11 @@
-CUDA = "1"
-MOE = "0"
-B = 0
-H = 128
-S = "tsg"
-D = 4
-REPEAT = 1
+CUDA = "3" # 虚拟GPU号 0~3
+MOE = "1" # 1 要 DSME 
+B = 0 # 是否使用bagging做消融实验
+H = 128 # MTSDNet的hidden属性
+S = "tsg" # tsg为MTSDNet架构
+D = 4 # MTSDNet的dim属性
+REPEAT = 1 # 实验重复次数
+ONLY_INFO = 0 # 1的话只看模型参数不训练
 V = "../final_results"
 models = ['mtsdnet',"tripleattention","dualattention"]
 for BASELINE in models:
@@ -12,7 +13,7 @@ for BASELINE in models:
 
     for i, dataset in enumerate(datasets):
         dataset_dict = eval(open("./data/dataset_dict.json", "r+").read())
-        params =   {"dataset_name":"" ,  "model_name":"caonima" ,  "sliding_window_length": "" ,  "batch_size":"" ,  "epochs":"20" ,  "cuda_device":CUDA ,  "use_moe":MOE, "repeat": REPEAT, "end2end":"1", 'alpha':"0.5", "beta":"0.5", 'hidden':H, "structure_str":S, "save_path":V, "dim":D, "out_channels":64, "use_bagging":B, "only_info": 1} 
+        params =   {"dataset_name":"" ,  "model_name":"caonima" ,  "sliding_window_length": "" ,  "batch_size":"" ,  "epochs":"20" ,  "cuda_device":CUDA ,  "use_moe":MOE, "repeat": REPEAT, "end2end":"1", 'alpha':"0.5", "beta":"0.5", 'hidden':H, "structure_str":S, "save_path":V, "dim":D, "out_channels":64, "use_bagging":B, "only_info": ONLY_INFO} 
         params['model_name'] = BASELINE
         params["dataset_name"],  params['sliding_window_length'] , params['batch_size'], num_volunteers = dataset
         

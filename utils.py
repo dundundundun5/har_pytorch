@@ -99,15 +99,15 @@ def get_model(args):
                                                     dropout=0.3,args=args)
     if model_name == 'mtsdnet':
         from model.MTSDNet import MTSDNet
-        from model.MTSDNET_original import CBEATS_p
+        # from model.MTSDNET_original import CBEATS_p
         model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
                          hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
         # model = CBEATS_p(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
         #                  hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
-    if model_name == "mtsdnet_layer_moe":
-        from model.MTSDNet_MOE import MTSDNet
-        model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
-                         hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
+    # if model_name == "mtsdnet_layer_moe":
+    #     from model.MTSDNet_MOE import MTSDNet
+    #     model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
+    #                      hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
     if model_name == "ddnn":
         from model.DDNN import DDNN
         model = DDNN(128, n_lstm_layer=1,d_AE=50, sliding_window_length=sliding_window_length, num_channels=num_channels,num_classes=num_classes)
