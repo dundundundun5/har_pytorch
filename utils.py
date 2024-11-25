@@ -1,4 +1,6 @@
 import numpy as np
+import torch.utils
+import torch.utils.data
 from tqdm import tqdm
 import random
 import time
@@ -11,7 +13,6 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset,DataLoader, random_split
 import warnings
 warnings.filterwarnings('ignore')
-
 from torchmetrics import MetricCollection
 class MyDataset(Dataset):
     def __init__(self,  dataset_name: str, sliding_window_length: int, volunteer_list=None, relative_path: str = "../har_data/preprocessed/"):
@@ -43,7 +44,12 @@ class MyLoss(nn.Module):
                 equal_loss = self.weights_loss(weights, equal_weights)
                 total_loss += self.beta * equal_loss
             return total_loss, model_loss, moe_loss, equal_loss
-      
+# class MetaLoss(nn.Module):
+#     def __init__(self):
+#         super(MetaLoss, self)
+#     def forward(self, x1, x2, y1, y2):
+        
+        
 def load_by_volunteers(volunteer_list, path, sliding_window_length):
     X,y,p = None, None, None
     path = path + f"{sliding_window_length}/"
@@ -64,7 +70,7 @@ def load_by_volunteers(volunteer_list, path, sliding_window_length):
             y = np.concatenate([y, temp_y])
             p = np.concatenate([p, temp_p])
         except FileNotFoundError:
-            print("找不到文件夹!!!!!")
+            print(f"找不到{path}文件夹!!!!!")
             exit(1)
     return X, y, p
 
@@ -91,47 +97,56 @@ def get_model(args):
                              num_channels,
                              32,
                              64)
-    if model_name == 'transformer':
+    elif model_name == 'transformer':
         from model.VisionTransformer import VisionTransformer
         model = VisionTransformer(num_classes,num_channels,
                                                     sliding_window_length, num_blocks=3, nb_head=4, 
                                                     hidden_dim=8,
                                                     dropout=0.3,args=args)
-    if model_name == 'mtsdnet':
+    elif model_name == 'mtsdnet':
         from model.MTSDNet import MTSDNet
-        # from model.MTSDNET_original import CBEATS_p
-        model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
-                         hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
-        # model = CBEATS_p(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
-        #                  hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
-    # if model_name == "mtsdnet_layer_moe":
-    #     from model.MTSDNet_MOE import MTSDNet
-    #     model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, 
-    #                      hidden=args.hidden, dim=args.dim, structure_str=args.structure_str)
-    if model_name == "ddnn":
+
+        model = MTSDNet(out_channel=num_classes,in_channel=num_channels,length=sliding_window_length, hidden=128, dim=4, structure_str="tsg")
+    elif model_name == "ddnn":
         from model.DDNN import DDNN
         model = DDNN(128, n_lstm_layer=1,d_AE=50, sliding_window_length=sliding_window_length, num_channels=num_channels,num_classes=num_classes)
-    if model_name == "gile":
+    elif model_name == "gile":
         from model.GILE import GILE
         model = GILE(args)
-    if model_name == "tripleattention":
+    elif model_name == "tripleattention":
         from model.TripletAttentionCNN import TripleAttentionCNN,TripleAttentionResnet
         model = TripleAttentionResnet(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
-    if model_name == "dualattention":
+    elif model_name == 'resnet':
+        from model.ResNet import Resnet
+        model = Resnet(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
+    elif model_name == 'resnetmeta':
+        from model.ResNetMeta import ResnetMeta
+        model = ResnetMeta(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
+    elif model_name == "dualattention":
         from model.DualAttentionCNN import DualAttentionCNN,DualAttentionResnet
         model = DualAttentionResnet(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels * 2)
-    if model_name == 'deepcoral':
+    elif model_name == 'deepcoral':
         from model.DeepCoral import DeepCoralCNN
         model = DeepCoralCNN(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
-    if model_name == 'dann':
+    elif model_name == 'dann':
         from model.DANN import DANNCNN
         model = DANNCNN(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
-    if model_name == 'rsc':
+    elif model_name == 'rsc':
         from model.RSC import RSCCNN
         model = RSCCNN(args.sliding_window_length, args.num_channels, args.num_classes, args.out_channels)
+    elif model_name == 'tccsnet':
+        from model.TCCSNet import CSNet
+        model = CSNet(args.sliding_window_length, args.num_channels, args.num_classes, args.cuda_device)
+    elif model_name == 'gruinc':
+        from model.GRUINC import GRUINC
+        model = GRUINC(args.sliding_window_length, args.num_channels, args.num_classes, filter=32)
+    elif model_name == 'elk':
+        from model.ELKCNN import ELK_CNN
+        model = ELK_CNN(args.num_channels, args.num_classes)
     return model
-
 def get_model_info(args):
+    import warnings
+    warnings.warn("模型参数显示已废弃，不要用", DeprecationWarning)
     print(f"=========================================={args.model_name}===================================")   
     model = get_model(args) 
     from torchinfo import summary
@@ -139,6 +154,8 @@ def get_model_info(args):
             input_data=(torch.rand(1,args.sliding_window_length, args.num_channels)), 
             device='cuda:0',batch_dim=0)
     print(f"=========================================={args.model_name}===================================")
+    return  
+    
     
 def get_time() -> str:
     return time.strftime('%Y/%m/%d/%H:%M', time.localtime())
@@ -175,6 +192,7 @@ def get_signals(path='.'):
         
     plt.savefig(f"{path}/test.png", bbox_inches='tight')
     plt.savefig(f"{path}/test.svg", bbox_inches='tight')
+    
 
 def get_result_name(args):
     now = get_time()
@@ -184,7 +202,7 @@ def get_result_name(args):
     # make dir and make empty file
     os.makedirs(f"{result_path}/{now}", exist_ok=True)
     
-    return result_name, result_path, f"{result_path}/{now}"
+    return result_name, result_path
 
 def save_by_result_name(result_path, res, args):
     if args.use_moe == 1:
@@ -198,8 +216,9 @@ def get_loader_by_volunteers(args):
     volunteer_list = args.volunteer_split.split("|")
     res_loader = []
     for i in range(len(volunteer_list)):
-        volunteer_list[i] = volunteer_list[i].split(",")
-        dataset = MyDataset(dataset_name=args.dataset_name,sliding_window_length=args.sliding_window_length,volunteer_list=volunteer_list[i])
+        temp = volunteer_list[i].split(",")
+        dataset = MyDataset(dataset_name=args.dataset_name,sliding_window_length=args.sliding_window_length,volunteer_list=temp)
+        # TODO collect_fn override
         loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
         print(f'loader #{i+1} batch:{len(loader)}')
         res_loader.append(loader)
@@ -617,6 +636,7 @@ def train_test_moe_end2end_with_torchmetrics(models, moe, train_loaders, test_lo
         accAndF1 = metrics.compute()
         result.extend([epoch+1, round(accAndF1['acc'].item() * 100,2),round(accAndF1['wf1'].item() * 100,2)])
         print(f'Train: accuracy: {accAndF1["acc"].item() * 100:.2f}%, weighted_f1: {accAndF1["wf1"]* 100:.2f}%, loss: {total_loss / total_batches:.4f}')
+        print(f'Train: loss total loss({total_loss / total_batches:.4f}) = alpha ({args.alpha})  x domain loss ({total_domains_loss / total_batches:.4f}) + (1-alpha) ({1-args.alpha}) x moe loss ({total_moe_loss / total_batches:.4f}) + beta ({args.beta}) x equal loss ({total_equal_loss / total_batches:.4f})')
         print(f"Train: weights: {np.round(torch.mean(total_weights, dim=0).detach().cpu().numpy(), 2)}")
         
         all_loss.append(total_loss / total_batches)
@@ -1444,5 +1464,151 @@ def train_test_moe_2stage(moe, train_loaders, test_loader, result_name , result_
             np.savetxt(result_name,  np.array(results, dtype=np.float64), fmt='%.4f', delimiter=',')
     best_result.append(best_weights)
     return best_result
+
+class MetaSampler(torch.utils.data.Sampler):
+    def __init__(self, data, num_classes):
+        self.data = data
+        self.num_classes = num_classes
+    def __iter__(self):
+        indices = []
+        for n in range(self.num_classes):
+            index = torch.where(self.data.y == n)[0]
+            indices.append(index)
+        indices = torch.cat(indices, dim=0)
+        return iter(indices)
+    def __len__(self):
+        return len(self.data)
+
+def meta_train_test_with_torchmetrics(model:nn.Module, all_loader, train_loaders, valid_loaders,test_loader, result_name, result_path, args):
+    
+    print(f"==============================================training {args.model_name}==============================================")
+    torch.cuda.set_device(f"cuda:{args.cuda_device}")
+    model = model.cuda()
+    valid_metrics = get_metrics(args).cuda()
+    metrics = get_metrics(args).cuda()
+    criterion = get_loss(args)
+    distance = nn.MSELoss()
+    optimizer = get_optimizer(model, args)
+    epochs = args.epochs
+    weights_init(model)
+    scheduler = StepLR(optimizer=optimizer,step_size=5)
+    best_acc = 0.0
+    f = open(result_name, mode='w+')
+    f.write("epoch,train_acc,train_wf1,test_acc,test_wf1,train_loss\n")
+    f.close()
+    for epoch in range(epochs):  # loop over the dataset multiple times
+        metrics.reset()
+        result = []
+        model.train()
+        train_loss = 0.0
+        tqdm_all_loader = tqdm((all_loader), total=(len(all_loader)))
+        # 先把整个训练集训练几遍 参考metareg
+        for i, train_data in enumerate(tqdm_all_loader):
+            train_X, train_y, train_p = train_data
+            train_X, train_y, train_p = train_X.float().cuda(), train_y.long().cuda(), train_p.long().cuda()
+            train_y = train_y.squeeze(1) # [X, 1] > [X,]
+            train_p = train_p.squeeze(1) - 1 # 来自数据源的域标签是1开始
+            predict_y = model(train_X)
+            loss = criterion(predict_y, train_y)  
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            tqdm_all_loader.set_description(f'Train Epoch [{epoch+1}/{epochs}] [loss={train_loss/(i+1):.2f}]') 
+            metrics.update(predict_y, train_y)
+        scheduler.step()
+        accAndF1 = metrics.compute()
+        print(f'Train: accuracy: {accAndF1["acc"].item() * 100:.2f}%, weighted_f1: {accAndF1["wf1"].item() * 100:.2f}%')
+        # 然后元-训练测试 只取几个batch就行
+        meta_valid_index = random.randint(0,len(valid_loaders)-1)
+        meta_train_index = random.randint(0,len(train_loaders)-1)
+        train_sampler, valid_sampler = MetaSampler(valid_loaders[meta_valid_index].dataset, args.num_classes),MetaSampler(train_loaders[meta_train_index].dataset, args.num_classes)
+        valid_loader= DataLoader(dataset=valid_loaders[meta_valid_index].dataset, batch_size=args.batch_size // 4, drop_last=True, sampler=valid_sampler)
+        train_loader = DataLoader(dataset=train_loaders[meta_train_index].dataset, batch_size=args.batch_size // 4, drop_last=True, sampler=train_sampler)
+        # valid_loader = valid_loaders[meta_valid_index]
+        # train_loader = train_loaders[meta_train_index]
+        stop_batch = 10
+        metrics.reset()
+        valid_metrics.reset()
+        print(f"Meta Train-Valid: Sampled Mini-batch Number={stop_batch}")
+        tqdm_train_loader = tqdm((train_loader), total=(stop_batch))
+        tqdm_valid_loader = tqdm((valid_loader), total=(stop_batch))
+        
+        ## 此处插入 train_loader 
+        for (train_idx, train_data), valid_data in zip(enumerate(tqdm_train_loader), tqdm_valid_loader):
+            tqdm_train_loader.set_description(f'Meta-train Epoch [{epoch+1}/{epochs}]')  
+            tqdm_valid_loader.set_description(f'Meta-valid Epoch [{epoch+1}/{epochs}]')      
+            if train_idx == stop_batch:
+                break
+            train_X, train_y, train_p = train_data
+            x, y, _ = valid_data
+            if torch.unique(train_y).shape[0] != 1:
+                continue
+            if train_y[0][0].item() != y[0][0].item():
+                continue
+            
+            train_X, train_y, train_p = train_X.float().cuda(), train_y.long().cuda(), train_p.long().cuda()
+            train_y = train_y.squeeze(1) # [X, 1] > [X,]
+            
+            x, y = x.float().cuda(), y.long().cuda()
+            y = y.squeeze(1)
+            
+            
+            predict_y = model(train_X)
+            f1 = model.get_feature()
+            metrics.update(predict_y, train_y)
+            meta_train_loss = criterion(predict_y, train_y)  
+            
+            
+            predict_y = model(x, meta_loss=meta_train_loss)
+            f2 = model.get_feature()
+            meta_valid_loss = criterion(predict_y, y)
+            valid_metrics.update(predict_y, y)
+            # TODO 特征约束距离 控制距离度量函数
+            feature_dist = distance(f1, f2)
+            total_loss = meta_train_loss + meta_valid_loss * args.beta + feature_dist * args.gamma
+            
+            optimizer.zero_grad()
+            total_loss.backward()
+            optimizer.step()
+        scheduler.step()
+        accAndF1 = metrics.compute()
+        meta_valid_metrics = valid_metrics.compute()
+        metrics.reset()
+        valid_metrics.reset()
+        total_loss = total_loss.item()
+        
+        print(f'Meta Train: accuracy: {accAndF1["acc"].item() * 100:.2f}%, weighted_f1: {accAndF1["wf1"].item() * 100:.2f}%')
+        print(f'Meta Valid: accuracy: {meta_valid_metrics["acc"].item() * 100:.2f}%, weighted_f1: {meta_valid_metrics["wf1"].item() * 100:.2f}% ')
+        print(f"Meta total loss ({total_loss:.4f}) = meta_train_loss ({meta_train_loss:.4f}) + meta_valid loss ({meta_valid_loss:.4f}) * beta ({args.beta}) + distance ({feature_dist}) * gamma ({args.gamma})")
+        # Test time!
+        result.extend([epoch+1, round(accAndF1['acc'].item() * 100,2),round(accAndF1['wf1'].item() * 100,2)])
+        # 测试，不变
+        model.eval()
+        with torch.no_grad():       
+            metrics.reset()
+            total_batches = len(test_loader)
+            for test_data in test_loader:              
+                test_X, test_y, _  = test_data
+                test_X, test_y = test_X.float().cuda(), test_y.long().cuda()
+                test_y = test_y.squeeze(1) # [X, 1] > [X,]
+                predict_y = model(test_X) 
+                metrics.update(predict_y, test_y)
+        # 本轮测试的所有结果 
+        accAndF1 = metrics.compute()
+        print(f'Test: accuracy: {accAndF1["acc"] * 100:.2f}%, weighted_f1: {accAndF1["wf1"] * 100:.2f}%')
+        result.extend([round(accAndF1['acc'].item() * 100,2),round(accAndF1['wf1'].item() * 100,2), round(total_loss / total_batches , 4)])
+        if best_acc < accAndF1["acc"]:
+            best_acc = accAndF1["acc"]
+            best_wf1 = accAndF1["wf1"]
+            best_model = model
+            best_metrics = accAndF1
+            best_result = result
+    print(f"best acc={best_acc * 100:.2f}, best wf1={best_wf1 * 100:.2f}")
+    #     with open(result_name, mode='a') as f:
+    #         f.write(str(result)[1:-1] + "\n")
+    # torch.save({"model":best_model.state_dict()}.update(best_metrics), f"{result_path}/{args.model_name}_{args.volunteer_split}_acc={best_acc * 100:.2f}_wf1={best_wf1 * 100:.2f}_seed={args.seed}.ckpt") 
+    return best_result
 if __name__ == '__main__':
     print("你运行的是utils.py!!!")
+    

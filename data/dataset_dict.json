@@ -39,11 +39,6 @@
         "num_channels": 12,
         "num_volunteers": 24
     },
-    "wisdm": {
-        "num_classes": 19,
-        "num_channels": 3,
-        "num_volunteers": 51
-    },
     "sho": {
         "num_classes": 7,
         "num_channels": 60,

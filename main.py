@@ -5,7 +5,7 @@ from utils import *
 def main(args):
     setup_seed(args.seed)
     data_loaders = get_loader_by_volunteers(args)
-    result_name, result_path, result_now_path = get_result_name(args)
+    result_name, result_path = get_result_name(args)
     # end2end moe
     if args.use_bagging == 1:
         models = [get_model(args) for _ in range(args.n_domains - 1)]
@@ -34,9 +34,21 @@ def main(args):
         from model.Gate import Gate3
         moe = Gate3(args.sliding_window_length, args.num_channels, len(data_loaders) - 1, 256)
         res = train_test_moe_2stage_with_torchmetrics(moe, data_loaders[:-1], data_loaders[-1], result_name, result_path, args)
+    # meta learning
+    elif args.use_meta == 1:
+        model = get_model(args)
+        from model.meta import nn
+        nn.meta_lr = args.meta_lr
+        # 1,2|3|4|5 -> [1+2] train [3,4] valid [5]test
+        n = len(data_loaders) - 1
+        bound =  n // 2 if n % 2 == 0 else n // 2 + 1  # len(data_loaders) >= 4
+        all_loader =data_loaders[0]
+        data_loaders = data_loaders[1:]
+        res = meta_train_test_with_torchmetrics(model, all_loader, data_loaders[0:bound], data_loaders[bound:-1], data_loaders[-1], result_name, result_path, args)
     # train single model
     elif args.use_moe == 0:
         model = get_model(args)
+        
         if args.model_name == 'dann':
             res = train_test_dann_with_torchmetrics(model, data_loaders[0], data_loaders[1], result_name, result_path, args)
         elif args.model_name == 'deepcoral':    
@@ -45,14 +57,31 @@ def main(args):
             res = train_test_rsc_with_torchmetrics(model, data_loaders[0], data_loaders[1], result_name, result_path, args)
         else:
             res = train_test_with_torchmetrics(model, data_loaders[0], data_loaders[1], result_name, result_path, args)
+    
     # save all the results     
     save_by_result_name(result_path, res, args)
 if __name__ == '__main__':
+    
+    # import logging
+    # import sys
+    # logging.basicConfig(filename='meta_results.log',level=logging.INFO)
+    # class Logger:
+    #     def __init__(self, level) -> None:
+    #         self.level = level
+    #     def write(self, msg):
+    #         if msg != '\n':
+    #             self.level(msg.strip())
+    #     def flush(self):
+    #         self.level(sys.stderr)
+        
+    # sys.stdout = Logger(logging.info)
+    # sys.stderr = Logger(logging.warning)
+
     parser = ArgumentParser()
     parser.add_argument('--repeat', default=1, type=int)
     parser.add_argument('--seed', default=3407, type=int)
     # cuda device 0
-    parser.add_argument('--cuda_device', default=2, type=int)
+    parser.add_argument('--cuda_device', default=0, type=int)
     parser.add_argument('--dataset_name', default='opportunity',
                         choices=['dsads', 'opportunity', 'pamap2',
                                  'uci_har', 'usc_had',
@@ -60,24 +89,27 @@ if __name__ == '__main__':
                         type=str)
     parser.add_argument('--only_preprocess', default=0, type=int)
     parser.add_argument('--only_info', default=1, type=int)
-    parser.add_argument('--sliding_window_length', default=32, type=int)
-    parser.add_argument('--sliding_window_step', default=28, type=int)
-    parser.add_argument('--volunteer_split', default="1,2,3,4,5,6,7|8", type=str)
+    parser.add_argument('--sliding_window_length', default=64, type=int)
+    parser.add_argument('--sliding_window_step', default=32, type=int)
+    parser.add_argument('--volunteer_split', default="2,3,4|1", type=str)
     # train info
-    parser.add_argument('--model_name', default='mtsdnet',
-                        type=str, choices=['deepconvlstm','transformer','mtsdnet','ddnn',"tripleattention","dualattention","gile", "mtsdnet_layer_moe","dann", "deepcoral","rsc"])
-    parser.add_argument('--epochs', type=int, default=20)
+    parser.add_argument('--model_name', default='resnet',
+                        type=str, choices=['deepconvlstm','transformer','mtsdnet','ddnn',"tripleattention","resnetmeta","dualattention","gile", "mtsdnet_layer_moe","dann", "deepcoral","rsc", "resnet",'tccsnet','gruinc','elk'])
+    parser.add_argument('--epochs', type=int, default=15)
     parser.add_argument('--use_moe', type=int, default=0)
     parser.add_argument('--use_bagging', type=int, default=0)
+    parser.add_argument('--use_meta', type=int, default=0)
     parser.add_argument('--end2end', type=int, default=0)
-    parser.add_argument('--batch_size', default=512, type=int)
-    parser.add_argument('--lr', default=3e-3, type=float)
+    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--meta_lr', default=3e-4, type=float)
+    parser.add_argument('--lr', default=1e-3, type=float)
     parser.add_argument('--wd', default=0, type=float)
     parser.add_argument('--criterion', default='ce', type=str)
     # Model Hyperparameters 这里不急着添加
     parser.add_argument('--num_hiddens', default=4, type=int) # moe
     parser.add_argument('--alpha', default=0.5, type=float)
     parser.add_argument('--beta', default=0.5, type=float)
+    parser.add_argument('--gamma', default=0.5, type=float)
     parser.add_argument('--equal', type=int, default=0)
     parser.add_argument('--return_loss', type=int, default=1)
     # GILE model parameters
@@ -112,6 +144,7 @@ if __name__ == '__main__':
     for repeat_i in range(args.repeat):
         args.seed = 3407
         print(f"repeat#{repeat_i+1}===seed={args.seed}")
-        main(args)
 
+        main(args)
+        # TODO 元学习实验批量开展，必须表格化，repeat=1
     

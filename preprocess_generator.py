@@ -45,3 +45,4 @@ os.makedirs("./scripts/", exist_ok=True)
 with open("./scripts/preprocess.sh", "w") as f:
     for a in ans:
         f.write(a)
+    f.write("python intoNDomains.py\n\n")

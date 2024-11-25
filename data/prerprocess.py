@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import os
-# TODO 待定！{路径拼接重构为 aa/bb/cc 最后一位不带斜杠}
 from window import get_sliding_window
 from scipy.io import loadmat
 RELATIVE_PATH = "../har_data/" # with slash at the end
@@ -16,7 +15,6 @@ DATA_PATH = {
     "uci_har":"UCI_HAR/",
     "unimib_shar":"UniMiB-SHAR/data/",
     "usc_had":"USC-HAD/",
-    "wisdm":"wisdm-dataset/raw/"
 }
 LABEL_MAP = {
     "dsads":{1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,11:10,12:11,13:12,14:13,15:14,16:15,17:16,18:17,19:18},
@@ -36,8 +34,6 @@ LABEL_MAP = {
     # adl {1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8}
     # fall {1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7}
     "usc_had":{1:0,2:1,3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,11:10,12:11},
-    "wisdm":{"A":0,"B":1,"C":2,"D":3,"E":4,"F":5,"G":6,"H":7,"I":8,"J":9,
-             "K":10,"L":11,"M":12,"N":13,"O":14,"P":15,"Q":16,"R":17,"S":18}
 }
 def normalize(x):
     # from sklearn.preprocessing import StandardScaler
@@ -46,7 +42,7 @@ def normalize(x):
     
     mean = np.mean(x, axis=0)
     std = np.std(x, axis=0)
-    x = (x - mean) / std
+    x = (x - mean) / (std + 0.0001)
     return x
 def select_columns(data, dataset):
     if dataset == "opportunity":
@@ -91,9 +87,6 @@ def divide_x_y(data, dataset):
     elif dataset == "usc_had":
         data_x = data[:, :-1]
         data_y = data[:, -1]
-    elif dataset == "wisdm":
-        data_x = data[:, 3:]
-        data_y = data[:, 1]  
     return data_x, data_y
 def preprocess(data, dataset):
     data = select_columns(data, dataset)
@@ -101,46 +94,11 @@ def preprocess(data, dataset):
     data_y = adjust_idx_labels(data_y, dataset)
     data_y = data_y.astype(np.int64)
     data_x = data_x.astype(np.float64)
-    # if dataset not in("wisdm","sho", "motionsense"):
+    np.nan_to_num(data_x, copy=False, nan=0)
     data_x[np.isnan(data_x)] = 0
     data_x = normalize(data_x)
     return data_x, data_y
-# TODO 
-# def dsads(sliding_window_length, sliding_window_step, path, final_path):
-#     NUM_P = 9
-#     NUM_A = 20
-#     NUM_S = 61
-#     NUM_CHANNELS = 46
-#     for p in range(1, NUM_P):
-#         res_x = np.empty((0, sliding_window_length , NUM_CHANNELS - 1))
-#         res_y = np.empty((0, 1))
-#         for a in range(1, NUM_A):
-#             idx = a
-#             if a < 10:
-#                 a = "0" + str(a)
-#             data_x = np.empty((0, NUM_CHANNELS - 1))
-#             data_y = np.empty((0))
-#             for s in range(1, NUM_S):
-#                 if s < 10:
-#                     s = "0" + str(s)
-#                 data = pd.read_csv(path + f"a{a}/p{p}/s{s}.txt", header=None)
-#                 x = data.to_numpy()
-#                 y = np.array([idx-1 for _ in range(125)])
-#                 data_x = np.concatenate([data_x, x], axis=0)
-#                 data_y = np.concatenate([data_y, y], axis=0)
-    
-            
-#             from sklearn.preprocessing import StandardScaler
-#             s = StandardScaler()
-#             data_x = s.fit_transform(data_x)
-#             temp_x,temp_y = get_sliding_window(data_x, data_y, sliding_window_length, sliding_window_step)
-#             res_x = np.concatenate([res_x, temp_x], axis=0)
-#             res_y = np.concatenate([res_y, temp_y.reshape(-1, 1)], axis=0)
-
-#         np.save(final_path + f"volunteer{p}_x.npy", res_x)
-#         np.save(final_path + f"volunteer{p}_y.npy", res_y)
-#         print(f"saving volunteer{p}_x.npy and volunteer{p}_y.npy")
-
+# TODO dsads不再沿用师兄分割方法，改为follow官方分割
 def dsads(sliding_window_length, sliding_window_step, path, final_path):
     for p in range(1, 8 + 1):
         res_x = np.empty((0, sliding_window_length , 45))
@@ -166,6 +124,30 @@ def dsads(sliding_window_length, sliding_window_step, path, final_path):
         np.save(final_path + f"volunteer{p}_x.npy", res_x)
         np.save(final_path + f"volunteer{p}_y.npy", res_y)
         print(f"saving volunteer{p}_x.npy and volunteer{p}_y.npy")
+# def dsads(sliding_window_length, sliding_window_step, path, final_path):
+#     NUM_P = 9
+#     NUM_A = 20
+#     NUM_S = 61
+#     NUM_CHANNELS = 46
+#     for p in range(1, NUM_P):
+#         res_x = np.empty((0, sliding_window_length , NUM_CHANNELS - 1))
+#         res_y = np.empty((0, 1))
+#         for a in range(1, NUM_A):
+#             idx = a
+#             if a < 10:
+#                 a = "0" + str(a)
+#             for s in range(1, NUM_S):
+#                 if s < 10:
+#                     s = "0" + str(s)
+#                 data = pd.read_csv(path + f"a{a}/p{p}/s{s}.txt", header=None)
+#                 x = data.to_numpy()
+#                 y = np.array([idx-1])
+#                 res_x = np.concatenate([res_x, x.reshape(1, 125, -1)], axis=0)
+#                 res_y = np.concatenate([res_y, y.reshape(1, -1)], axis=0)
+                
+#         np.save(final_path + f"volunteer{p}_x.npy", res_x)
+#         np.save(final_path + f"volunteer{p}_y.npy", res_y)
+#         print(f"saving volunteer{p}_x.npy and volunteer{p}_y.npy")
 def pamap2(sliding_window_length, sliding_window_step, path, final_path):
     NUM_P = 9
     for i in range(NUM_P):
@@ -180,6 +162,7 @@ def pamap2(sliding_window_length, sliding_window_step, path, final_path):
 def opportunity(sliding_window_length, sliding_window_step, path, final_path):
     NUM_CHANNELS = 114
     NUM_P = 4
+    # TODO oppotunity填充nan值方法无效 解决
     for i in range(NUM_P):
         data_x = np.empty((0, sliding_window_length , NUM_CHANNELS - 1))
         data_y = np.empty((0, 1),dtype=int)
@@ -199,7 +182,6 @@ def opportunity(sliding_window_length, sliding_window_step, path, final_path):
         np.save(file=final_path + f"volunteer{i + 1}_y.npy", arr=data_y)
         print(f"保存文件volunteer{i + 1}_x.npy和volunteer{i + 1}_y.npy")
 def usc_had(sliding_window_length, sliding_window_step, path, final_path):
-    # TODO 针对USC-HAD数据集，把一个志愿者的所有.数据文件合并，然后放入文件夹
     NUM_A = 13
     NUM_T = 6
     NUM_P = 15
@@ -264,7 +246,7 @@ def sho(sliding_window_length, sliding_window_step, path, final_path):
 def mhealth(sliding_window_length, sliding_window_step, path, final_path):
     NUM_P = 10
     for i in range(NUM_P):
-        data = pd.read_csv(path + f"mHealth_subject{i + 1}.log", sep="\s+", header=None).to_numpy()
+        data = pd.read_csv(path + f"mHealth_subject{i + 1}.log", sep="\\s+", header=None).to_numpy()
         x, y = preprocess(data, "mhealth")
         x, y = get_sliding_window(x, y, sliding_window_length, sliding_window_step)
         #classes(y)
@@ -341,29 +323,12 @@ def uci_har(sliding_window_length, sliding_window_step, path,final_path):
         np.save(final_path + f"volunteer{i + 1}_y.npy", data_y[i])
         #classes(data_y[i])
         print(f"saving volunteer{i + 1}_x.npy and volunteer{i + 1}_y.npy")
-def wisdm(sliding_window_length, sliding_window_step, path, final_path):
-
-    SENSOR_TYPE = ("phone", "accel")
-    NUM_P = 51
-    for i in range(NUM_P):
-        idx = i
-        if idx <= 9:
-            idx = "0" + str(idx)
-        columns = ["subject","label","timestamp","x","y","z"]
-        data = pd.read_csv(path + f"{SENSOR_TYPE[0]}/{SENSOR_TYPE[1]}/data_16{idx}_{SENSOR_TYPE[1]}_{SENSOR_TYPE[0]}.txt", header=None)
-        data = pd.DataFrame(data=data.to_numpy(), columns=columns)
-        data['z'] = data['z'].apply(lambda x : float(x[:-1]))
-        data = data.to_numpy()
-        x, y = preprocess(data, "wisdm")
-        x, y = get_sliding_window(x, y, sliding_window_length, sliding_window_step)
-        #classes(y)
-        np.save(file=final_path + f"volunteer{i + 1}_x.npy", arr=x)
-        np.save(file=final_path + f"volunteer{i + 1}_y.npy", arr=y)
-        print(f"保存文件volunteer{i + 1}_x.npy和volunteer{i + 1}_y.npy")
 def main(sliding_window_length, sliding_window_step, dataset):
     
     path, final_path = get_data_path(dataset=dataset)
-    if dataset == "uci_har":
+    if dataset == "dsads":
+        final_path += "32/"
+    elif dataset == "uci_har":
         final_path += "128/"
     elif dataset == "unimib_shar":
         final_path += "151/"
@@ -376,4 +341,4 @@ def classes(data_y):
     print(pd.DataFrame(data_y).value_counts().sort_index())
 if __name__ == '__main__':
     
-    main(128, 32, "pamap2")
+    main(64, 32, "opportunity")

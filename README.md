@@ -11,6 +11,7 @@
 ## 运行一条龙
 1. cd /data/dundun/har_pytorch
 2. conda activate gjw
+conda activate dd
 <!-- 3. bash ./scripts/preprocess.sh  已经运行过数据预处理则无需再次运行-->
 4. 打开cmd_generator.py, 直接运行，生成三个backbone的命令行参数, CUDA选3，用的人少
 5. 保持路径不变 bash ./scripts/cuda3.sh 如果选了CUDA 1 则bash ./scripts/cuda1.sh
