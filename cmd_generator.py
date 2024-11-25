@@ -1,16 +1,16 @@
-CUDA = "3" # 虚拟GPU号 0~3
-MOE = "1" # 1 要 DSME 
+CUDA = "1" # 虚拟GPU号 0~3
+MOE = "0" # 1 要 DSME 
 B = 0 # 是否使用bagging做消融实验
 H = 128 # MTSDNet的hidden属性
 S = "tsg" # tsg为MTSDNet架构
 D = 4 # MTSDNet的dim属性
 REPEAT = 1 # 实验重复次数
 ONLY_INFO = 0 # 1的话只看模型参数不训练
-V = "../final_results"
-models = ['mtsdnet',"tripleattention","dualattention"]
+V = "../added_results"
+models = ['tccsnet']
+models = ['gruinc']
 for BASELINE in models:
-    datasets = [ ("dsads","32", "512", 8),("pamap2","128", "512", 8), ("opportunity", "64", "512", 4), ("uci_har","128","512", 4)]
-
+    datasets = [ ("dsads","32", "128", 8),("pamap2","128", "128", 8), ("opportunity", "64", "128", 4), ("uci_har","128","128", 4)]
     for i, dataset in enumerate(datasets):
         dataset_dict = eval(open("./data/dataset_dict.json", "r+").read())
         params =   {"dataset_name":"" ,  "model_name":"caonima" ,  "sliding_window_length": "" ,  "batch_size":"" ,  "epochs":"20" ,  "cuda_device":CUDA ,  "use_moe":MOE, "repeat": REPEAT, "end2end":"1", 'alpha':"0.5", "beta":"0.5", 'hidden':H, "structure_str":S, "save_path":V, "dim":D, "out_channels":64, "use_bagging":B, "only_info": ONLY_INFO} 
@@ -33,7 +33,7 @@ for BASELINE in models:
                             continue
                         temp += f"{j},"
                     temp = temp[:-1]
-                    temp += f"\|{i}"
+                    temp += f"\\|{i}"
                     volunteer_splits.append(temp)
             if use_moe == 1:
                 for i in range(1, num_volunteers+1):
@@ -43,9 +43,9 @@ for BASELINE in models:
                         
                         if j == i:
                             continue
-                        temp += f"{j}\|"
+                        temp += f"{j}\\|"
                     temp = temp[:-2]
-                    temp += f"\|{i}"
+                    temp += f"\\|{i}"
                     volunteer_splits.append(temp)
             return volunteer_splits
 
@@ -67,4 +67,4 @@ for BASELINE in models:
             print(f"{params['dataset_name']}_cuda{params['cuda_device']}")    
             for r in results:
                 f.write(r + "\n\n")
-                break
+                

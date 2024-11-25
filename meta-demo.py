@@ -47,10 +47,14 @@ args.sliding_window_step = 32
 args.num_volunteers = 4
 args.num_classes = 18
 args.num_channels = 113
-args.batch_size = 32
-from utils import get_loader_by_volunteers, weights_init
+args.batch_size = 128
+from utils import get_loader_by_volunteers, weights_init, MetaSampler
+from torch.utils.data import DataLoader
 loaders = get_loader_by_volunteers(args)
 train_loader = loaders[0]
+ds = loaders[0].dataset
+train_sampler = MetaSampler(ds, args.num_classes)
+train_loader = DataLoader(ds, batch_size=args.batch_size,drop_last=True, sampler=train_sampler)
 valid_loader = loaders[1:3]
 test_loader = loaders[3]
 epcohs = 5
@@ -102,5 +106,4 @@ for epoch in range(epcohs):
         
         print()
             
-    # TODO test
 
