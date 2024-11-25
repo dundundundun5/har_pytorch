@@ -37,6 +37,8 @@ class AttentionGate(nn.Module):
         x_compress = self.compress(x)
         x_out = self.conv(x_compress)
         scale = torch.sigmoid(x_out)
+        print(scale.shape)
+        print(x.shape)
         return x * scale
 
 
@@ -203,9 +205,9 @@ class TripleAttentionResnet(nn.Module):
         return out    
 if __name__ == "__main__":
 
-    l,c, cl = 128,12, 14
-    model = TripleAttentionCNN(l, c, cl)
-    a = torch.rand(33,1 ,l, c)
+    l,c, cl = 128,113, 5
+    model = TripleAttentionResnet(l, c, cl)
+    a = torch.rand(16,l, c)
     
     print(model(a))
     pass
